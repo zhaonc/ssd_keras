@@ -685,7 +685,12 @@ class BatchGenerator:
 
             for filename in self.filenames[current:current+batch_size]:
                 with Image.open(filename) as img:
-                    batch_X.append(np.array(img))
+                    if img.mode == 'RGB':
+                        rgbimg = img
+                    else:
+                        rgbimg = Image.new("RGB", img.size)
+                        rgbimg.paste(img)
+                    batch_X.append(np.array(rgbimg))
 
             if not self.labels is None:
                 batch_y = deepcopy(self.labels[current:current+batch_size])
