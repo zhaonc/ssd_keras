@@ -96,3 +96,5 @@ ENV/
 
 # Custom files
 local
+
+.idea
