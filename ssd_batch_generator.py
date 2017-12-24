@@ -232,6 +232,56 @@ class BatchGenerator:
         else:
             self.labels = None # This will be either `None` or a list of 2D Numpy arrays with all the ground truth boxes for a given image.
 
+    def parse_coco(self,
+                   coco_path,
+                   data_type,
+                   categories=None,
+                   ret=False):
+        '''
+
+        Arguments:
+            coco_path (str): The path to the directory that contains the COCO datasets.
+            data_type (str): The type of the dataset, e.g. train2017, val2017 etc.
+            categories (list, optional): Categories included in training. Set to `None` for all categories.
+            ret (bool, optional): Whether or not the image filenames and labels are to be returned.
+                Defaults to `False`.
+
+        Returns:
+            None by default, optionally the image filenames and labels.
+        '''
+        from pycocotools.coco import COCO
+        coco = COCO(os.path.join(coco_path, 'annotations', 'instances_' + data_type + '.json'))
+        self.images_path = os.path.join(coco_path, 'images', data_type)
+
+        self.filenames = []
+        self.labels = []
+
+        categories = [] if categories is None else categories
+        coco_cat_ids = coco.getCatIds(catNms=categories)
+        ssd_cat_ids = {}
+
+        for img_id, img in coco.imgs.iteritems():
+            img_name = os.path.join(img['file_name'])
+            ann_ids = coco.getAnnIds(imgIds=[img_id], catIds=coco_cat_ids, iscrowd=None)
+            anns = coco.loadAnns(ann_ids)
+            boxes = []
+            for ann in anns:
+                bbox = ann['bbox']
+                coco_cat_id = ann['category_id']
+                ssd_cat_id = ssd_cat_ids.get(coco_cat_id, len(ssd_cat_ids) + 1)
+                x, y, w, h = bbox
+                if w > 0.01 and h > 0.01:
+                    xmin, xmax, ymin, ymax = x, x + w, y, y + h
+                    box = [ssd_cat_id, xmin, xmax, ymin, ymax]
+                    boxes.append(box)
+
+            if boxes:
+                self.labels.append(np.stack(boxes, axis=0))
+                self.filenames.append(os.path.join(self.images_path, img_name))
+
+        if ret: # In case we want to return these
+            return self.filenames, self.labels
+
     def parse_csv(self,
                   images_path=None,
                   labels_path=None,
